@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://corradobotta.github.io/sitemap.xml
