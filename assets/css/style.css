@@ -203,7 +203,7 @@ ul { padding-left: 1.1em; }
 .btn-primary {
   background: var(--navy);
   border-color: var(--navy);
-  color: #fff;
+  color: var(--bg);
 }
 .btn-primary:hover { background: var(--navy-soft); border-color: var(--navy-soft); }
 
@@ -270,6 +270,8 @@ section.block:first-of-type { border-top: none; }
 .cv-entry h3 { font-size: 1.02rem; margin: 0 0 2px; }
 .cv-entry .meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 6px; }
 .cv-entry ul { font-size: 0.94rem; margin: 4px 0 0; }
+.cv-entry .cv-sub { margin: 12px 0 0; font-size: 0.95rem; color: var(--text-muted); }
+.cv-entry .cv-sub strong { color: var(--text); }
 .cv-download {
   display: flex;
   align-items: center;
