@@ -318,3 +318,55 @@ section.block:first-of-type { border-top: none; }
 .page-header { padding: 48px 0 8px; }
 .page-header h1 { font-size: 1.9rem; margin: 0 0 8px; }
 .page-header p { color: var(--text-muted); margin: 0; }
+
+/* ---------- Articles ---------- */
+.article { max-width: 760px; }
+.article h2 { font-size: 1.35rem; margin: 40px 0 12px; }
+.article-kicker { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent) !important; margin: 0 0 10px !important; }
+.article-kicker a { color: var(--accent); }
+.article-meta { font-size: 0.92rem; margin-top: 4px !important; }
+.article pre {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  margin: 18px 0;
+  overflow-x: auto;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+.article pre code.hljs, .article pre code { display: block; padding: 16px 18px; background: transparent; }
+.article pre.output {
+  padding: 12px 18px;
+  margin-top: -8px;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+.article :not(pre) > code {
+  font-size: 0.88em;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.article .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.table-wrap { overflow-x: auto; margin: 18px 0; }
+.data-table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+.data-table th, .data-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.data-table th { color: var(--text-muted); font-weight: 600; }
+.article-figure { margin: 24px 0; }
+.article-figure img { background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; }
+.article-figure figcaption { color: var(--text-muted); font-size: 0.88rem; margin-top: 8px; }
+.article-ref { color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 16px; margin-top: 32px; }
+.support-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 32px 0 0;
+}
+.support-box p { margin: 0; }
