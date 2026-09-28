@@ -370,3 +370,6 @@ section.block:first-of-type { border-top: none; }
   margin: 32px 0 0;
 }
 .support-box p { margin: 0; }
+.latest-article .pub-title { color: var(--navy); font-size: 1.05rem; }
+.latest-article p { color: var(--text-muted); margin: 6px 0 0; font-size: 0.95rem; }
+.article-nav { margin-top: 24px; font-size: 0.95rem; }

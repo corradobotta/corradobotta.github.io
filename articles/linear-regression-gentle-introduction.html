@@ -13,6 +13,15 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://corradobotta.github.io/articles/linear-regression-gentle-introduction.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Corrado Botta">
+<meta property="og:title" content="Linear Regression: A Gentle Introduction with Applications to Finance">
+<meta property="og:description" content="How to read linear regression coefficients in levels and logs, with an application to CEO pay and Python code written from scratch.">
+<meta property="og:url" content="https://corradobotta.github.io/articles/linear-regression-gentle-introduction.html">
+<meta property="og:image" content="https://corradobotta.github.io/assets/img/articles/linear-regression-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -39,7 +48,7 @@
   <header class="page-header">
     <p class="article-kicker"><a href="../articles.html">Articles</a> &middot; Econometrics</p>
     <h1>Linear Regression: A Gentle Introduction with Applications to Finance</h1>
-    <p class="article-meta">Corrado Botta &middot; 28 September 2026</p>
+    <p class="article-meta">Corrado Botta &middot; 28 September 2026 &middot; 7 min read</p>
   </header>
 
   <p>A linear regression returns a list of numbers. Each one answers a precise question, but which question depends on how the variables enter the model: in levels, in logs, or a mix of the two. This article works through that on a classic cross-section, the CEO salary data used in Wooldridge's <em>Introductory Econometrics</em>. It covers 209 U.S. CEOs in 1990, with their salary, their firm's sales and its return on equity (ROE).</p>
@@ -245,6 +254,10 @@ plt.show()</code></pre>
 
   <p class="article-ref">Reference: J. M. Wooldridge, <em>Introductory Econometrics: A Modern Approach</em>, 7th ed., Cengage, 2020, chapters 2&ndash;3 and 6. Data: CEOSAL1.</p>
 
+  <nav class="article-nav">
+    <a href="../articles.html">&larr; All articles</a>
+  </nav>
+
 </main>
 
 <footer class="site-footer">
@@ -254,6 +267,8 @@ plt.show()</code></pre>
       <a href="mailto:corrado.botta@unibocconi.it">corrado.botta@unibocconi.it</a>
       <a href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener">LinkedIn</a>
       <a href="https://faculty.unibocconi.it/corradobotta/" target="_blank" rel="noopener">Bocconi faculty page</a>
+      <a href="https://scholar.google.com/citations?user=FTNSh2AAAAAJ&amp;hl=en" target="_blank" rel="noopener">Google Scholar</a>
+      <a href="https://papers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=6429627" target="_blank" rel="noopener">SSRN</a>
     </div>
   </div>
 </footer>
