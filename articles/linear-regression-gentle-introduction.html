@@ -98,7 +98,6 @@ sales  = ceo["sales"].to_numpy(float)    # $ millions
 roe    = ceo["roe"].to_numpy(float)      # percent
 
 def ols(y, *regressors):
-    """OLS via the normal equations, with the usual standard errors."""
     X = np.column_stack([np.ones(len(y)), *regressors])
     n, k = X.shape
     XtX_inv = np.linalg.inv(X.T @ X)
