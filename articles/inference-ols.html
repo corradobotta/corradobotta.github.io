@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inference in OLS Regression: t Statistics and p-Values · Corrado Botta</title>
+<meta name="description" content="What statistical inference is, why the t statistic follows a Student t distribution, how to read t statistics and p-values, and what they do not say, with a simulation and Python code written from scratch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://corradobotta.github.io/articles/inference-ols.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Corrado Botta">
+<meta property="og:title" content="Inference in OLS Regression: t Statistics and p-Values">
+<meta property="og:description" content="What statistical inference is, why the t statistic follows a Student t distribution, how to read t statistics and p-values, and what they do not say, with a simulation and Python code written from scratch.">
+<meta property="og:url" content="https://corradobotta.github.io/articles/inference-ols.html">
+<meta property="og:image" content="https://corradobotta.github.io/assets/img/articles/inference-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Inference in OLS Regression: t Statistics and p-Values",
+  "description": "What statistical inference is, why the t statistic follows a Student t distribution, how to read t statistics and p-values, and what they do not say, with a simulation and Python code written from scratch.",
+  "image": "https://corradobotta.github.io/assets/img/articles/inference-og.png",
+  "datePublished": "2026-10-26",
+  "author": {
+    "@type": "Person",
+    "name": "Corrado Botta",
+    "url": "https://corradobotta.github.io/"
+  },
+  "mainEntityOfPage": "https://corradobotta.github.io/articles/inference-ols.html"
+}
+</script>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script data-goatcounter="https://corradobotta.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a class="nav-brand" href="../index.html">Corrado Botta</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../research.html">Research</a></li>
+      <li><a href="../cv.html">CV</a></li>
+      <li><a href="../teaching.html">Teaching</a></li>
+      <li><a href="../articles.html" aria-current="page">Articles</a></li>
+      <li><a href="../collaborations.html">Collaborations</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="container article">
+
+  <header class="page-header">
+    <p class="article-kicker"><a href="../articles.html">Articles</a> &middot; Econometrics</p>
+    <h1>Inference in OLS Regression: t Statistics and p-Values</h1>
+    <p class="article-meta">Corrado Botta &middot; 26 October 2026 &middot; 8 min read</p>
+  </header>
+
+  <p>Every regression table reports a t statistic and a p-value next to each coefficient. This article explains where they come from, what they say about the population, and what they do not say. A simulation in which the true coefficients are known shows each step.</p>
+
+  <p>All estimates are computed from scratch with NumPy; SciPy provides only the Student t and normal distributions.</p>
+
+  <h2>Population and sample</h2>
+
+  <p>The <strong>population</strong> is the complete set of units we want to study (all firms, all workers, &hellip;). In the population</p>
+
+  $$y = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k + u ,$$
+
+  <p>and the parameters \(\beta_j\) are fixed but unknown. A <strong>sample</strong> is a set of \(n\) units drawn at random from the population: on these units we observe \(y\) and the regressors, and we compute the OLS estimates \(\hat\beta_j\).</p>
+
+  <p>Throughout the article the population is</p>
+
+  $$y = 1 + 0.3\,x_1 + 0\,x_2 + u ,$$
+
+  <p>where \(x_1\), \(x_2\) and \(u\) are independent standard normal variables: \(x_1\) has an effect on \(y\), \(x_2\) has none. The function <code>ols</code> returns the estimates, their standard errors, the t statistics and the p-values, which the next sections derive.</p>
+
+<pre><code class="language-python">import numpy as np
+from scipy import stats
+
+B0, B1, B2, SIGMA = 1.0, 0.3, 0.0, 1.0       # x1 has an effect, x2 has none
+
+def draw_sample(rng, n):
+    x1 = rng.standard_normal(n)
+    x2 = rng.standard_normal(n)
+    u = SIGMA * rng.standard_normal(n)
+    y = B0 + B1 * x1 + B2 * x2 + u
+    return y, x1, x2
+
+def ols(y, *regressors):
+    X = np.column_stack([np.ones(len(y)), *regressors])
+    n, k1 = X.shape                             # k1 = k + 1 parameters
+    XtX_inv = np.linalg.inv(X.T @ X)
+    b = XtX_inv @ X.T @ y                       # (X'X)^-1 X'y
+    u_hat = y - X @ b                           # residuals
+    sigma2_hat = (u_hat @ u_hat) / (n - k1)     # n - k - 1 degrees of freedom
+    se = np.sqrt(sigma2_hat * np.diag(XtX_inv))
+    t = b / se                                  # t statistics for H0: beta_j = 0
+    p = 2 * stats.t.sf(np.abs(t), n - k1)       # two-sided p-values
+    return b, se, t, p</code></pre>
+
+  <p>Three samples of \(n = 100\) from the same population give three different estimates:</p>
+
+<pre><code class="language-python">rng = np.random.default_rng(1)
+for s in range(3):
+    b = ols(*draw_sample(rng, 100))[0]
+    print(f"sample {s + 1}:  b1 = {b[1]:6.3f}   b2 = {b[2]:6.3f}")</code></pre>
+
+<pre class="output">sample 1:  b1 =  0.287   b2 = -0.014
+sample 2:  b1 =  0.134   b2 = -0.075
+sample 3:  b1 =  0.145   b2 =  0.212</pre>
+
+  <p>\(\hat\beta_j\) is a random variable: it changes from sample to sample.</p>
+
+  <h2>Inference</h2>
+
+  <p>We observe one sample, but the question is about the population. <strong>Statistical inference</strong> draws conclusions about \(\beta_j\) from \(\hat\beta_j\), taking into account that \(\hat\beta_j\) varies from sample to sample. A <strong>hypothesis test</strong> compares two statements about \(\beta_j\), holding the other regressors fixed:</p>
+
+  $$\begin{cases} H_0\colon \beta_j = 0 & x_j \text{ has no effect on } y \\ H_1\colon \beta_j \neq 0 & x_j \text{ has an effect on } y \end{cases}$$
+
+  <p>Is \(\hat\beta_j\) far enough from zero to reject \(H_0\)? To answer, we need the distribution of \(\hat\beta_j\) across samples.</p>
+
+  <h2>Assumptions</h2>
+
+  <p>We assume that the Gauss-Markov assumptions hold: linearity in parameters, random sampling, no perfect collinearity, zero conditional mean and homoskedasticity. In addition, we assume <strong>normality</strong>: the error \(u\) is independent of \(x_1,\dots,x_k\) and normally distributed, \(u \sim \mathcal N(0, \sigma^2)\).</p>
+
+  <p>If we treat the observed values of the regressors as given, the only source of randomness is \(u\), and the estimator is normal:</p>
+
+  $$\hat\beta_j \sim \mathcal N\!\left(\beta_j,\ \mathrm{sd}(\hat\beta_j)^2\right), \qquad \mathrm{sd}(\hat\beta_j) = \frac{\sigma}{\sqrt{\mathrm{SST}_j\,(1 - R_j^2)}} ,$$
+
+  <p>where \(\mathrm{SST}_j = \sum_i (x_{ij} - \bar x_j)^2\) is the total variation in \(x_j\) and \(R_j^2\) is the \(R^2\) of the regression of \(x_j\) on the other regressors.</p>
+
+  <h2>From normal to Student t</h2>
+
+  <p>Standardising \(\hat\beta_j\) with the standard deviation gives a standard normal:</p>
+
+  $$\frac{\hat\beta_j - \beta_j}{\mathrm{sd}(\hat\beta_j)} \sim \mathcal N(0,1) .$$
+
+  <p>But \(\mathrm{sd}(\hat\beta_j)\) contains \(\sigma\), which is unknown. We estimate \(\sigma\) from the residuals \(\hat u_i\) and obtain the <strong>standard error</strong>:</p>
+
+  $$\hat\sigma = \sqrt{\frac{1}{n-k-1}\sum_i \hat u_i^2} , \qquad \mathrm{se}(\hat\beta_j) = \frac{\hat\sigma}{\sqrt{\mathrm{SST}_j\,(1 - R_j^2)}} .$$
+
+  <p>Standardising \(\hat\beta_j\) with the standard error gives a Student t with \(n-k-1\) degrees of freedom:</p>
+
+  $$\frac{\hat\beta_j - \beta_j}{\mathrm{se}(\hat\beta_j)} \sim t_{n-k-1} .$$
+
+  <p>\(\hat\beta_j\) is normal, but the ratio is not: \(\hat\sigma\) also changes from sample to sample, which thickens the tails. As \(n\) grows, \(\hat\sigma \to \sigma\) and \(t_{n-k-1} \to \mathcal N(0,1)\).</p>
+
+  <h2>The t statistic</h2>
+
+  <p>Under \(H_0\colon \beta_j = 0\), the <strong>t statistic</strong> counts the standard errors between the estimate and zero:</p>
+
+  $$t_{\hat\beta_j} = \frac{\hat\beta_j}{\mathrm{se}(\hat\beta_j)} = \frac{\hat\beta_j\,\sqrt{\mathrm{SST}_j\,(1 - R_j^2)}}{\hat\sigma} \ \sim\ t_{n-k-1} .$$
+
+  <p>The second expression shows what makes \(|t|\) large: a large effect \(|\beta_j|\), a small error variance \(\sigma^2\), a large sample and much variation in \(x_j\) (a large \(\mathrm{SST}_j\)), and little correlation with the other regressors (a small \(R_j^2\)).</p>
+
+  <h2>Rejection rule and p-value</h2>
+
+  <p><strong>Rejection rule.</strong> We reject \(H_0\) at significance level \(\alpha\) if \(|t_{\hat\beta_j}| > c\), where the critical value \(c\) leaves \(\alpha/2\) in each tail of \(t_{n-k-1}\). If \(H_0\) is true, the test rejects it by mistake with probability \(\alpha\). With \(n = 100\) and \(k = 2\) there are 97 degrees of freedom:</p>
+
+<pre><code class="language-python">df = 100 - 2 - 1
+for alpha in (0.10, 0.05, 0.01):
+    print(f"alpha = {alpha:.2f}   c = {stats.t.ppf(1 - alpha / 2, df):.2f}")</code></pre>
+
+<pre class="output">alpha = 0.10   c = 1.66
+alpha = 0.05   c = 1.98
+alpha = 0.01   c = 2.63</pre>
+
+  <p><strong>p-value.</strong> The p-value is the probability, if \(H_0\) is true, of obtaining a t statistic at least as large in absolute value as the one observed, \(p = \Pr(|T| \geq |t_{\hat\beta_j}|)\) with \(T \sim t_{n-k-1}\). We reject \(H_0\) at level \(\alpha\) exactly when \(p < \alpha\).</p>
+
+  <h2>One sample</h2>
+
+  <p>We draw one sample of \(n = 100\) from the population and estimate the model by OLS:</p>
+
+<pre><code class="language-python">y, x1, x2 = draw_sample(np.random.default_rng(2026), 100)
+b1s, se1s, t1s, p1s = ols(y, x1, x2)
+c = stats.t.ppf(0.975, 97)
+
+print(f"{'':10s}{'estimate':&gt;9s}{'std. error':&gt;12s}{'t':&gt;8s}{'p-value':&gt;9s}  significant")
+for name, bj, sj, tj, pj in zip(["intercept", "x1", "x2"], b1s, se1s, t1s, p1s):
+    pv = f"{pj:9.3f}" if pj &gt;= 0.001 else f"{'&lt;0.001':&gt;9s}"
+    sig = "yes" if pj &lt; 0.05 else "no"
+    print(f"{name:10s}{bj:9.3f}{sj:12.3f}{tj:8.2f}{pv}  {sig}")
+print(f"critical value at 5%: {c:.2f}")</code></pre>
+
+<pre class="output">           estimate  std. error       t  p-value  significant
+intercept     1.104       0.101   10.93   &lt;0.001  yes
+x1            0.367       0.099    3.70   &lt;0.001  yes
+x2           -0.099       0.087   -1.14    0.259  no
+critical value at 5%: 1.98</pre>
+
+  <ul>
+    <li>For \(x_1\), \(|t| = 3.70 > 1.98\) and \(p < 0.001\): we reject \(H_0\).</li>
+    <li>For \(x_2\), \(|t| = 1.14 < 1.98\) and \(p = 0.259 > 0.05\): we do not reject \(H_0\).</li>
+  </ul>
+
+  <p>Is this evidence about the population, or is it driven by this particular sample?</p>
+
+  <h2>Repeated sampling</h2>
+
+  <p>In a simulation we can answer the question directly:</p>
+  <ol>
+    <li>Draw \(n = 100\) observations from the population.</li>
+    <li>Compute \(\hat\beta_j\), \(\mathrm{se}(\hat\beta_j)\), \(t\) and \(p\); the coefficient is significant if \(p < 0.05\).</li>
+    <li>Repeat steps 1 and 2 for \(B = 10{,}000\) samples.</li>
+    <li>Compute, across the \(B\) samples, the mean and the standard deviation of the estimates, the mean standard error and the share of significant samples:</li>
+  </ol>
+
+  $$\bar{\hat\beta}_j = \frac{1}{B}\sum_{b=1}^{B} \hat\beta_{j,b} , \qquad \mathrm{sd}(\hat\beta_j) = \sqrt{\frac{1}{B}\sum_{b=1}^{B} \left(\hat\beta_{j,b} - \bar{\hat\beta}_j\right)^2} ,$$
+
+  $$\overline{\mathrm{se}}_j = \frac{1}{B}\sum_{b=1}^{B} \mathrm{se}(\hat\beta_{j,b}) , \qquad \text{share}_j = \frac{1}{B}\sum_{b=1}^{B} \mathbf{1}\left(p_{j,b} < 0.05\right) ,$$
+
+  <p>where \(\mathbf{1}(\cdot)\) equals 1 if the condition holds and 0 otherwise.</p>
+
+<pre><code class="language-python">R, N = 10_000, 100
+rng = np.random.default_rng(1)
+B, SE, T, P = (np.empty((R, 3)) for _ in range(4))
+for r in range(R):
+    B[r], SE[r], T[r], P[r] = ols(*draw_sample(rng, N))
+
+print(f"{'':4s}{'beta':&gt;6s}{'mean b':&gt;9s}{'sd b':&gt;8s}{'mean se':&gt;9s}{'significant':&gt;13s}")
+for j, beta in ((1, B1), (2, B2)):
+    share = 100 * (P[:, j] &lt; 0.05).mean()
+    print(f"x{j}  {beta:6.1f}{B[:, j].mean():9.3f}{B[:, j].std():8.3f}"
+          f"{SE[:, j].mean():9.3f}{share:12.1f}%")
+
+as_extreme = 100 * (np.abs(T[:, 2]) &gt;= abs(t1s[2])).mean()
+print(f"x2: |t| &gt;= {abs(t1s[2]):.2f} in {as_extreme:.1f}% of the samples")</code></pre>
+
+<pre class="output">      beta   mean b    sd b  mean se  significant
+x1     0.3    0.301   0.102    0.101        83.0%
+x2     0.0   -0.001   0.103    0.102         5.2%
+x2: |t| &gt;= 1.14 in 25.7% of the samples</pre>
+
+  <p>The two estimates have the same precision, and the mean standard error matches the standard deviation of the estimates: the formula for \(\mathrm{se}(\hat\beta_j)\) measures the variation from sample to sample correctly. The answer to the test, however, changes from sample to sample. \(x_1\) is significant in 83.0% of the samples, \(x_2\) in 5.2%, although it has no effect. In 25.7% of the samples \(|t_{\hat\beta_2}| \geq 1.14\), close to the p-value of 0.259 computed from the single sample.</p>
+
+  <h2>Simulated t statistics</h2>
+
+<pre><code class="language-python">import matplotlib.pyplot as plt
+
+grid = np.linspace(-5, 8, 500)
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+for ax, j, title in zip(axes, (1, 2), ("x1: beta_1 = 0.3", "x2: beta_2 = 0")):
+    ax.hist(T[:, j], bins=np.arange(-5, 8.01, 0.25), density=True,
+            color="C0" if j == 1 else "grey", alpha=0.7)
+    ax.plot(grid, stats.t.pdf(grid, 97), color="black")      # distribution under H0
+    for s in (-1, 1):
+        ax.axvline(s * c, color="C3", ls="--")
+    ax.set(title=title, xlabel="t statistic", yticks=[])
+plt.tight_layout()
+plt.show()</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/inference-t.svg" alt="Histograms of 10,000 t statistics. For x1 the histogram is centred near 3, to the right of the t density centred at 0; for x2 it overlaps the t density. Dashed lines mark the critical values plus and minus 1.98.">
+    <figcaption>10,000 samples of 100 observations. Black line: the \(t_{97}\) density, the distribution under \(H_0\); dashed lines: the critical values \(\pm 1.98\).</figcaption>
+  </figure>
+
+  <ul>
+    <li>For \(x_1\), the histogram is centred near \(\beta_1/\mathrm{sd}(\hat\beta_1) = 0.3/0.102 \approx 3\), and 83.0% of the samples fall beyond the critical values.</li>
+    <li>For \(x_2\), the histogram overlaps the \(t_{97}\) density, and only the 5.2% of samples in the tails are significant.</li>
+  </ul>
+
+  <p>Significance depends on the effect relative to its standard error: with the same precision, the larger effect is significant in more samples.</p>
+
+  <h2>Student t &rarr; normal</h2>
+
+  <p>To see why the critical values come from the Student t, we repeat the simulation for \(x_2\), whose true effect is zero, with \(n = 10\) and \(n = 100\), and count the significant samples with the critical value of the Student t and with the normal value 1.96:</p>
+
+<pre><code class="language-python">rng = np.random.default_rng(3)
+z = stats.norm.ppf(0.975)
+t_x2 = {}
+for n in (10, 100):
+    t_x2[n] = np.array([ols(*draw_sample(rng, n))[2][2] for _ in range(R)])
+    c_n = stats.t.ppf(0.975, n - 3)
+    print(f"n = {n:3d}:  c Student = {c_n:.2f}, c normal = {z:.2f};  significant "
+          f"{100 * (np.abs(t_x2[n]) &gt; c_n).mean():.1f}% with Student, "
+          f"{100 * (np.abs(t_x2[n]) &gt; z).mean():.1f}% with normal")</code></pre>
+
+<pre class="output">n =  10:  c Student = 2.36, c normal = 1.96;  significant 4.9% with Student, 8.6% with normal
+n = 100:  c Student = 1.98, c normal = 1.96;  significant 4.7% with Student, 4.9% with normal</pre>
+
+<pre><code class="language-python">grid = np.linspace(-5, 5, 500)
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+for ax, n in zip(axes, (10, 100)):
+    c_n = stats.t.ppf(0.975, n - 3)
+    ax.hist(t_x2[n], bins=np.arange(-5, 5.01, 0.25), density=True,
+            color="grey", alpha=0.5)
+    ax.plot(grid, stats.t.pdf(grid, n - 3), color="black", label="Student t")
+    ax.plot(grid, stats.norm.pdf(grid), color="C3", ls="--", label="normal")
+    for s in (-1, 1):
+        ax.axvline(s * c_n, color="black", ls=":")
+        ax.axvline(s * z, color="C3", ls=":")
+    ax.set(title=f"n = {n}", xlabel="t statistic of x2", yticks=[])
+axes[0].legend(frameon=False)
+plt.tight_layout()
+plt.show()</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/inference-student-normal.svg" alt="Histograms of the t statistic of x2 for n = 10 and n = 100, with the Student t and normal densities. At n = 10 the Student t has thicker tails and a wider critical value (2.36) than the normal (1.96); at n = 100 the two coincide.">
+    <figcaption>10,000 samples per size, \(\beta_2 = 0\). Dotted lines: the critical values (black: Student t; red: normal).</figcaption>
+  </figure>
+
+  <p>At \(n = 10\) the tails are thicker than those of the normal: using 1.96 instead of 2.36 flags a non-existent effect in 8.6% of the samples instead of 4.9%. At \(n = 100\) the two distributions coincide, and so do the critical values.</p>
+
+  <h2>Simulated p-values</h2>
+
+<pre><code class="language-python">fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharex=True)
+for ax, j, title in zip(axes, (1, 2), ("x1: beta_1 = 0.3", "x2: beta_2 = 0")):
+    ax.hist(P[:, j], bins=np.arange(0, 1.0001, 0.05), weights=np.full(R, 100 / R),
+            color="C0" if j == 1 else "grey", alpha=0.7)
+    ax.axvline(0.05, color="C3", ls="--")
+    ax.set(title=title, xlabel="p-value")
+axes[0].set_ylabel("% of samples")
+plt.tight_layout()
+plt.show()
+
+print(f"x1: p &lt; 0.05 in {100 * (P[:, 1] &lt; 0.05).mean():.1f}%, "
+      f"p &lt; 0.01 in {100 * (P[:, 1] &lt; 0.01).mean():.1f}%")
+print(f"x2: p &lt; 0.05 in {100 * (P[:, 2] &lt; 0.05).mean():.1f}%")</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/inference-p.svg" alt="Histograms of 10,000 p-values. For x1 most p-values are below 0.05; for x2 they are spread evenly between 0 and 1, about 5% in each interval of width 0.05.">
+    <figcaption>10,000 samples of 100 observations. Dashed line: \(p = 0.05\).</figcaption>
+  </figure>
+
+<pre class="output">x1: p &lt; 0.05 in 83.0%, p &lt; 0.01 in 62.9%
+x2: p &lt; 0.05 in 5.2%</pre>
+
+  <ul>
+    <li>For \(x_1\), the p-values pile up near zero: \(p < 0.05\) in 83.0% of the samples and \(p < 0.01\) in 62.9%.</li>
+    <li>\(x_2\) has no effect, yet each interval of width 0.05 contains about 5% of the samples, and \(p < 0.05\) in 5.2% of them. These are false positives, and their rate equals the significance level: if \(H_0\) is true, the p-value is uniformly distributed between 0 and 1.</li>
+  </ul>
+
+  <h2>Misreading p-values</h2>
+  <ul>
+    <li><strong>The p-value is not the probability that \(H_0\) is true.</strong> It is computed assuming that \(H_0\) is true.</li>
+    <li><strong>Not rejecting is not accepting.</strong> \(x_1\) has an effect, yet it is not significant in 17.0% of the samples.</li>
+    <li><strong>The p-value does not measure the size of the effect.</strong> With enough data, an economically negligible effect is statistically significant.</li>
+    <li><strong>Significance depends on \(\alpha\)</strong>, which is a convention: 5% is common, not a law.</li>
+  </ul>
+
+  <h2>Takeaways</h2>
+  <ul>
+    <li>\(\hat\beta_j\) is a random variable: inference draws conclusions about the population from one sample.</li>
+    <li>The t statistic counts standard errors: \(t = \hat\beta_j/\mathrm{se}(\hat\beta_j)\) follows \(t_{n-k-1}\) under \(H_0\) and is close to \(\mathcal N(0,1)\) in large samples.</li>
+    <li>Significance depends on the effect relative to its standard error.</li>
+    <li>If \(H_0\) is true, \(p < \alpha\) in a share \(\alpha\) of the samples: false positives are part of the procedure.</li>
+    <li>The p-value measures the evidence against \(H_0\): it is the probability, if \(H_0\) is true, of a t statistic at least as large in absolute value as the one observed. We reject \(H_0\) when \(p < \alpha\).</li>
+  </ul>
+
+  <aside class="support-box">
+    <p>If this article was useful, you can support the series with a coffee, or follow it on LinkedIn.</p>
+    <div class="btn-row">
+    <a class="btn btn-primary" href="https://ko-fi.com/corradobotta" target="_blank" rel="noopener" data-goatcounter-click="ko-fi-inference" data-goatcounter-title="Ko-fi: inference">&#9749; Buy me a coffee</a>
+    <a class="btn" href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener" data-goatcounter-click="linkedin-inference" data-goatcounter-title="LinkedIn: inference">Follow on LinkedIn</a>
+    </div>
+  </aside>
+
+  <p class="article-ref">Reference: J. M. Wooldridge, <em>Introductory Econometrics: A Modern Approach</em>, 7th ed., Cengage, 2020. All data are simulated.</p>
+
+  <nav class="article-nav">
+    <a href="../articles.html">&larr; All articles</a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>Corrado Botta</div>
+    <div class="footer-links">
+      <a href="mailto:corrado.botta@unibocconi.it">corrado.botta@unibocconi.it</a>
+      <a href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://faculty.unibocconi.it/corradobotta/" target="_blank" rel="noopener">Bocconi faculty page</a>
+      <a href="https://scholar.google.com/citations?user=FTNSh2AAAAAJ&amp;hl=en" target="_blank" rel="noopener">Google Scholar</a>
+      <a href="https://papers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=6429627" target="_blank" rel="noopener">SSRN</a>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/main.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "\\(", right: "\\)", display: false }
+    ],
+    ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+  });
+  hljs.highlightAll();
+});
+</script>
+</body>
+</html>
