@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The F Test: Testing Several Coefficients at Once · Corrado Botta</title>
+<meta name="description" content="What a joint hypothesis is, how the F statistic compares a restricted and an unrestricted model through their sums of squared residuals or their R-squared, how to test overall significance, and why variables can be jointly significant when none is significant alone, with Python code written from scratch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://corradobotta.github.io/articles/f-test.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Corrado Botta">
+<meta property="og:title" content="The F Test: Testing Several Coefficients at Once">
+<meta property="og:description" content="What a joint hypothesis is, how the F statistic compares a restricted and an unrestricted model through their sums of squared residuals or their R-squared, how to test overall significance, and why variables can be jointly significant when none is significant alone, with Python code written from scratch.">
+<meta property="og:url" content="https://corradobotta.github.io/articles/f-test.html">
+<meta property="og:image" content="https://corradobotta.github.io/assets/img/articles/f-test-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "The F Test: Testing Several Coefficients at Once",
+  "description": "What a joint hypothesis is, how the F statistic compares a restricted and an unrestricted model through their sums of squared residuals or their R-squared, how to test overall significance, and why variables can be jointly significant when none is significant alone, with Python code written from scratch.",
+  "image": "https://corradobotta.github.io/assets/img/articles/f-test-og.png",
+  "datePublished": "2026-11-02",
+  "author": {
+    "@type": "Person",
+    "name": "Corrado Botta",
+    "url": "https://corradobotta.github.io/"
+  },
+  "mainEntityOfPage": "https://corradobotta.github.io/articles/f-test.html"
+}
+</script>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script data-goatcounter="https://corradobotta.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a class="nav-brand" href="../index.html">Corrado Botta</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../research.html">Research</a></li>
+      <li><a href="../cv.html">CV</a></li>
+      <li><a href="../teaching.html">Teaching</a></li>
+      <li><a href="../articles.html" aria-current="page">Articles</a></li>
+      <li><a href="../collaborations.html">Collaborations</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="container article">
+
+  <header class="page-header">
+    <p class="article-kicker"><a href="../articles.html">Articles</a> &middot; Econometrics</p>
+    <h1>The F Test: Testing Several Coefficients at Once</h1>
+    <p class="article-meta">Corrado Botta &middot; 2 November 2026 &middot; 7 min read</p>
+  </header>
+
+  <p>A t test asks whether one coefficient is zero. Often the question is about several coefficients together: do two related variables, jointly, affect the outcome? Do the regressors, all together, explain anything? This article explains the F test, which answers these questions with a single statistic, and shows why it can reach a different conclusion from the individual t tests.</p>
+
+  <p>All estimates are computed from scratch with NumPy; SciPy provides only the Student t and F distributions.</p>
+
+  <h2>Joint hypotheses</h2>
+
+  <p>In the model</p>
+
+  $$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + u ,$$
+
+  <p>we ask whether \(x_2\) and \(x_3\), together, affect \(y\):</p>
+
+  $$\begin{cases} H_0\colon \beta_2 = 0 \text{ and } \beta_3 = 0 & (q = 2 \text{ restrictions}) \\ H_1\colon \text{at least one of } \beta_2, \beta_3 \text{ is different from zero} \end{cases}$$
+
+  <p>Two separate t tests do not answer this question. Each t test asks whether one coefficient is zero while the other variable stays in the model, and rejecting whenever at least one of the two t tests rejects does not give a test at the 5% level. We need one statistic for the \(q\) restrictions together.</p>
+
+  <h2>Restricted and unrestricted model</h2>
+
+  <p>The <strong>sum of squared residuals</strong> measures the variation in \(y\) that a model leaves unexplained:</p>
+
+  $$\mathrm{SSR} = \sum_{i=1}^{n} \hat u_i^2 , \qquad \hat u_i = y_i - \hat y_i .$$
+
+  <p>The F test compares two models estimated on the same data:</p>
+  <ul>
+    <li>the <strong>unrestricted model</strong> contains all the regressors, \(y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + u\), and gives \(\mathrm{SSR}_{ur}\);</li>
+    <li>the <strong>restricted model</strong> imposes \(H_0\), dropping \(x_2\) and \(x_3\): \(y = \beta_0 + \beta_1 x_1 + u\), and gives \(\mathrm{SSR}_r\).</li>
+  </ul>
+
+  <p>Dropping regressors can only increase the SSR, so \(\mathrm{SSR}_r \geq \mathrm{SSR}_{ur}\). If \(x_2\) and \(x_3\) matter, the SSR increases by a lot.</p>
+
+  <h2>The F statistic</h2>
+
+  <p>The F statistic measures the increase in the SSR per restriction, relative to the SSR of the unrestricted model:</p>
+
+  $$F = \frac{(\mathrm{SSR}_r - \mathrm{SSR}_{ur})/q}{\mathrm{SSR}_{ur}/(n-k-1)} \ \sim\ F_{q,\,n-k-1} \ \text{ under } H_0 ,$$
+
+  <p>where \(k\) is the number of regressors in the unrestricted model. The distribution requires the same assumptions as the t test: the Gauss-Markov assumptions and normal errors.</p>
+
+  <p><strong>Rejection rule.</strong> We reject \(H_0\) at level \(\alpha\) if \(F > c\), where the critical value \(c\) leaves \(\alpha\) in the right tail of \(F_{q,n-k-1}\); equivalently, if the p-value \(\Pr(F_{q,n-k-1} > F)\) is below \(\alpha\). Only large values of \(F\) count against \(H_0\).</p>
+
+  <p><strong>R-squared form.</strong> The two models have the same \(y\), hence the same total sum of squares \(\mathrm{SST}\), and \(\mathrm{SSR} = (1 - R^2)\,\mathrm{SST}\). Substituting, \(\mathrm{SST}\) cancels and the F statistic can be written with the \(R^2\) of the two models:</p>
+
+  $$F = \frac{(R^2_{ur} - R^2_r)/q}{(1 - R^2_{ur})/(n-k-1)} .$$
+
+  <h2>Overall significance</h2>
+
+  <p>The most common F test asks whether the regressors, all together, explain \(y\):</p>
+
+  $$\begin{cases} H_0\colon \beta_1 = \beta_2 = \dots = \beta_k = 0 & (q = k \text{ restrictions}) \\ H_1\colon \text{at least one } \beta_j \text{ is different from zero} \end{cases}$$
+
+  <p>The restricted model contains only the intercept, \(y = \beta_0 + u\), which explains nothing: \(R^2_r = 0\). The F statistic becomes</p>
+
+  $$F = \frac{R^2/k}{(1 - R^2)/(n-k-1)} \ \sim\ F_{k,\,n-k-1} \ \text{ under } H_0 .$$
+
+  <p>Every regression output reports this F statistic and its p-value. If we do not reject \(H_0\), none of the regressors helps to explain \(y\).</p>
+
+  <h2>One sample</h2>
+
+  <p>In the example the population is</p>
+
+  $$y = 1 + 0.3\,x_1 + 0.15\,x_2 + 0.15\,x_3 + u ,$$
+
+  <p>where \(x_1\) and \(u\) are independent standard normal variables, and \(x_2\) and \(x_3\) are standard normal with correlation 0.9: two related factors with small effects. The function <code>ols</code> returns the estimates, their standard errors, the SSR and the \(R^2\).</p>
+
+<pre><code class="language-python">import numpy as np
+from scipy import stats
+
+BETA = np.array([1.0, 0.3, 0.15, 0.15])   # intercept, x1, x2, x3
+RHO = 0.9                                  # correlation between x2 and x3
+
+def draw_sample(rng, n):
+    x1 = rng.standard_normal(n)
+    z2, z3 = rng.standard_normal(n), rng.standard_normal(n)
+    x2 = z2
+    x3 = RHO * z2 + np.sqrt(1 - RHO**2) * z3
+    X = np.column_stack([np.ones(n), x1, x2, x3])
+    y = X @ BETA + rng.standard_normal(n)
+    return X, y
+
+def ols(X, y):
+    n, k1 = X.shape                            # k1 = k + 1 parameters
+    XtX_inv = np.linalg.inv(X.T @ X)
+    b = XtX_inv @ X.T @ y                      # (X'X)^-1 X'y
+    u_hat = y - X @ b                          # residuals
+    ssr = u_hat @ u_hat                        # sum of squared residuals
+    se = np.sqrt(ssr / (n - k1) * np.diag(XtX_inv))
+    r2 = 1 - ssr / ((y - y.mean()) @ (y - y.mean()))
+    return b, se, ssr, r2</code></pre>
+
+  <p>We draw one sample of \(n = 100\) and estimate the unrestricted model by OLS:</p>
+
+<pre><code class="language-python">X, y = draw_sample(np.random.default_rng(2026), 100)
+n, k = 100, 3
+df = n - k - 1
+b, se, ssr_ur, r2_ur = ols(X, y)
+t = b / se
+p = 2 * stats.t.sf(np.abs(t), df)
+
+print(f"{'':10s}{'estimate':&gt;9s}{'std. error':&gt;12s}{'t':&gt;8s}{'p-value':&gt;9s}")
+for name, bj, sj, tj, pj in zip(["intercept", "x1", "x2", "x3"], b, se, t, p):
+    pv = f"{pj:9.3f}" if pj &gt;= 0.001 else f"{'&lt;0.001':&gt;9s}"
+    print(f"{name:10s}{bj:9.3f}{sj:12.3f}{tj:8.2f}{pv}")
+print(f"critical value of t at 5%: {stats.t.ppf(0.975, df):.2f}")
+print(f"correlation of x2 and x3 in the sample: {np.corrcoef(X[:, 2], X[:, 3])[0, 1]:.2f}")</code></pre>
+
+<pre class="output">           estimate  std. error       t  p-value
+intercept     0.936       0.099    9.41   &lt;0.001
+x1            0.413       0.097    4.25   &lt;0.001
+x2            0.245       0.213    1.15    0.253
+x3            0.062       0.228    0.27    0.787
+critical value of t at 5%: 1.98
+correlation of x2 and x3 in the sample: 0.92</pre>
+
+  <p>Neither \(x_2\) nor \(x_3\) is significant on its own: \(|t| = 1.15\) and \(0.27\), both below 1.98. Their standard errors are large because the two variables move together. Does this mean that \(x_2\) and \(x_3\) do not matter?</p>
+
+  <h2>F test for \(x_2\) and \(x_3\)</h2>
+
+  <p>We estimate the restricted model, without \(x_2\) and \(x_3\), on the same sample, and compute F in both forms:</p>
+
+<pre><code class="language-python">_, _, ssr_r, r2_r = ols(X[:, :2], y)        # restricted model: intercept and x1
+q = 2
+F_ssr = ((ssr_r - ssr_ur) / q) / (ssr_ur / df)
+F_r2 = ((r2_ur - r2_r) / q) / ((1 - r2_ur) / df)
+c = stats.f.ppf(0.95, q, df)
+print(f"SSR_ur = {ssr_ur:.2f}   R2_ur = {r2_ur:.3f}")
+print(f"SSR_r  = {ssr_r:.2f}   R2_r  = {r2_r:.3f}")
+print(f"F (SSR form) = {F_ssr:.2f}   F (R2 form) = {F_r2:.2f}")
+print(f"critical value of F({q},{df}) at 5%: {c:.2f}   p-value: {stats.f.sf(F_ssr, q, df):.3f}")</code></pre>
+
+<pre class="output">SSR_ur = 93.04   R2_ur = 0.227
+SSR_r  = 104.96   R2_r  = 0.128
+F (SSR form) = 6.15   F (R2 form) = 6.15
+critical value of F(2,96) at 5%: 3.09   p-value: 0.003</pre>
+
+  $$F = \frac{(104.96 - 93.04)/2}{93.04/96} = \frac{(0.227 - 0.128)/2}{(1 - 0.227)/96} = 6.15 .$$
+
+  <p>The SSR and the \(R^2\) give the same F. It exceeds the 5% critical value 3.09 of \(F_{2,96}\), and \(p = 0.003\): <strong>jointly, \(x_2\) and \(x_3\) are significant</strong>. Because they move together (correlation 0.92 in the sample), the data cannot separate their effects, but they show that together they matter.</p>
+
+  <h2>Overall significance in the sample</h2>
+
+  <p>The unrestricted model has \(R^2 = 0.227\) with \(k = 3\) regressors and \(n = 100\) observations:</p>
+
+<pre><code class="language-python">F_all = (r2_ur / k) / ((1 - r2_ur) / df)
+c_all = stats.f.ppf(0.95, k, df)
+p_all = stats.f.sf(F_all, k, df)
+print(f"overall F = {F_all:.2f}   critical value of F({k},{df}) at 5%: {c_all:.2f}   p-value: {p_all:.5f}")</code></pre>
+
+<pre class="output">overall F = 9.38   critical value of F(3,96) at 5%: 2.70   p-value: 0.00002</pre>
+
+  $$F = \frac{0.227/3}{(1 - 0.227)/96} = 9.38 > 2.70 .$$
+
+  <p>We reject \(H_0\): the regressors, together, explain \(y\). The overall test does not say which ones; the t tests and the F test for \(x_2\) and \(x_3\) do.</p>
+
+<pre><code class="language-python">import matplotlib.pyplot as plt
+
+grid = np.linspace(0, 12, 600)
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
+for ax, (d1, F_obs, c_d1, title) in zip(axes, [(q, F_ssr, c, "H0: beta2 = beta3 = 0"),
+                                               (k, F_all, c_all, "H0: beta1 = beta2 = beta3 = 0")]):
+    dens = stats.f.pdf(grid, d1, df)
+    ax.plot(grid, dens, color="black")
+    tail = grid &gt;= c_d1
+    ax.fill_between(grid[tail], dens[tail], color="C3", alpha=0.3, label="5% rejection region")
+    ax.axvline(F_obs, color="C0", lw=2, label=f"observed F = {F_obs:.2f}")
+    ax.set(title=f"{title}: F({d1}, {df})", xlabel="F")
+    ax.legend(frameon=False)
+axes[0].set_ylabel("density")
+plt.tight_layout()
+plt.show()</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/ftest-f.svg" alt="Densities of the F distribution with 2 and 96 degrees of freedom (left) and 3 and 96 (right). The shaded 5% rejection regions start at 3.09 and 2.70; the observed F statistics, 6.15 and 9.38, lie well inside them.">
+    <figcaption>The distribution of F under \(H_0\). Shaded: the 5% rejection region; blue line: the F statistic of the sample.</figcaption>
+  </figure>
+
+  <h2>One restriction: F and t</h2>
+
+  <p>With a single restriction, \(q = 1\), the F test and the two-sided t test are the same test: \(F = t^2\), and the two p-values coincide. For \(H_0\colon \beta_3 = 0\):</p>
+
+<pre><code class="language-python">_, _, ssr_r3, _ = ols(X[:, :3], y)          # restricted model without x3
+F3 = (ssr_r3 - ssr_ur) / (ssr_ur / df)
+print(f"H0: beta3 = 0   F = {F3:.4f}   t^2 = {t[3]**2:.4f}")</code></pre>
+
+<pre class="output">H0: beta3 = 0   F = 0.0732   t^2 = 0.0732</pre>
+
+  <p>The F test adds something new only when it tests several restrictions at once.</p>
+
+  <h2>Misreading the F test</h2>
+  <ul>
+    <li><strong>Individually insignificant does not mean jointly insignificant.</strong> With correlated regressors, the F test can reject when no t test does.</li>
+    <li><strong>A significant F test does not say which variable matters.</strong> It says that at least one of the restrictions is false.</li>
+    <li><strong>A significant overall F does not make every regressor relevant.</strong> One strong regressor is enough to reject.</li>
+    <li><strong>Not rejecting is not accepting.</strong> A small F means that the data cannot reject \(H_0\), not that the coefficients are zero.</li>
+  </ul>
+
+  <h2>Takeaways</h2>
+  <ul>
+    <li>The F test checks several restrictions at once, comparing the SSR of the restricted and the unrestricted model.</li>
+    <li>Under \(H_0\), \(F\) follows \(F_{q,n-k-1}\): we reject when \(F\) exceeds the critical value, or when \(p < \alpha\).</li>
+    <li>The same F can be computed with the SSR or with the \(R^2\) of the two models.</li>
+    <li>Joint and individual tests answer different questions: variables can be jointly significant even if none is significant on its own.</li>
+    <li>The overall F test asks whether all the regressors, together, explain \(y\); it depends only on \(R^2\), \(k\) and \(n\).</li>
+  </ul>
+
+  <aside class="support-box">
+    <p>If this article was useful, you can support the series with a coffee, or follow it on LinkedIn.</p>
+    <div class="btn-row">
+    <a class="btn btn-primary" href="https://ko-fi.com/corradobotta" target="_blank" rel="noopener" data-goatcounter-click="ko-fi-f-test" data-goatcounter-title="Ko-fi: F test">&#9749; Buy me a coffee</a>
+    <a class="btn" href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener" data-goatcounter-click="linkedin-f-test" data-goatcounter-title="LinkedIn: F test">Follow on LinkedIn</a>
+    </div>
+  </aside>
+
+  <p class="article-ref">Reference: J. M. Wooldridge, <em>Introductory Econometrics: A Modern Approach</em>, 7th ed., Cengage, 2020. All data are simulated.</p>
+
+  <nav class="article-nav">
+    <a href="../articles.html">&larr; All articles</a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>Corrado Botta</div>
+    <div class="footer-links">
+      <a href="mailto:corrado.botta@unibocconi.it">corrado.botta@unibocconi.it</a>
+      <a href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://www.youtube.com/@corradobotta" target="_blank" rel="noopener">YouTube</a>
+      <a href="https://faculty.unibocconi.it/corradobotta/" target="_blank" rel="noopener">Bocconi faculty page</a>
+      <a href="https://scholar.google.com/citations?user=FTNSh2AAAAAJ&amp;hl=en" target="_blank" rel="noopener">Google Scholar</a>
+      <a href="https://papers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=6429627" target="_blank" rel="noopener">SSRN</a>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/main.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "\\(", right: "\\)", display: false }
+    ],
+    ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+  });
+  hljs.highlightAll();
+});
+</script>
+</body>
+</html>
