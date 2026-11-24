@@ -208,7 +208,7 @@ for n in [25, 100, 400, 1600]:
    400   0.300      0.051                   4.9%
   1600   0.300      0.025                   0.0%</pre>
 
-  <p>The mean is close to 0.3 at every \(n\): OLS is unbiased here. What changes with \(n\) is the spread: each time \(n\) is multiplied by 4, the standard deviation is roughly halved, as the \(1/\sqrt n\) rate predicts. At \(n = 25\), 60.8% of the estimates are more than 0.1 away from the true value; at \(n = 1{,}600\), none is.</p>
+  <p>The mean is close to 0.3 at every \(n\): OLS is unbiased here. What changes with \(n\) is the spread: each time \(n\) is multiplied by 4, the standard deviation is roughly halved, as the \(1/\sqrt n\) rate predicts. At \(n = 25\), 60.8% of the estimates are more than 0.1 away from the true value; at \(n = 1{,}600\), only 2 out of 10,000 are.</p>
 
 <pre><code class="language-python">import matplotlib.pyplot as plt
 
