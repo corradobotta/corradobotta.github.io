@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Large Samples: Consistency, Asymptotic Normality and the Power of a Test · Corrado Botta</title>
+<meta name="description" content="Why OLS remains reliable when the error is not normal: consistency and inconsistency, asymptotic normality of the t statistic, Type I and Type II errors and the power of a test, with a simulation on skewed data and Python code written from scratch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://corradobotta.github.io/articles/large-samples.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Corrado Botta">
+<meta property="og:title" content="Large Samples: Consistency, Asymptotic Normality and the Power of a Test">
+<meta property="og:description" content="Why OLS remains reliable when the error is not normal: consistency and inconsistency, asymptotic normality of the t statistic, Type I and Type II errors and the power of a test, with a simulation on skewed data and Python code written from scratch.">
+<meta property="og:url" content="https://corradobotta.github.io/articles/large-samples.html">
+<meta property="og:image" content="https://corradobotta.github.io/assets/img/articles/large-samples-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Large Samples: Consistency, Asymptotic Normality and the Power of a Test",
+  "description": "Why OLS remains reliable when the error is not normal: consistency and inconsistency, asymptotic normality of the t statistic, Type I and Type II errors and the power of a test, with a simulation on skewed data and Python code written from scratch.",
+  "image": "https://corradobotta.github.io/assets/img/articles/large-samples-og.png",
+  "datePublished": "2026-11-24",
+  "author": {
+    "@type": "Person",
+    "name": "Corrado Botta",
+    "url": "https://corradobotta.github.io/"
+  },
+  "mainEntityOfPage": "https://corradobotta.github.io/articles/large-samples.html"
+}
+</script>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script data-goatcounter="https://corradobotta.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a class="nav-brand" href="../index.html">Corrado Botta</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../research.html">Research</a></li>
+      <li><a href="../cv.html">CV</a></li>
+      <li><a href="../teaching.html">Teaching</a></li>
+      <li><a href="../articles.html" aria-current="page">Articles</a></li>
+      <li><a href="../collaborations.html">Collaborations</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="container article">
+
+  <header class="page-header">
+    <p class="article-kicker"><a href="../articles.html">Articles</a> &middot; Econometrics</p>
+    <h1>Large Samples: Consistency, Asymptotic Normality and the Power of a Test</h1>
+    <p class="article-meta">Corrado Botta &middot; 24 November 2026 &middot; 8 min read</p>
+  </header>
+
+  <p>The t and F tests use exact Student t and F distributions only if the error of the regression is normally distributed. In real data this assumption often fails: wages, firm sizes and stock returns are skewed and have heavy tails. This article explains what we can still say when the sample is large: where the OLS estimator goes as the sample size grows, which distribution the t statistic approaches, and how the sample size changes our chance of detecting a true effect.</p>
+
+  <p>All estimates are computed from scratch with NumPy; SciPy provides only the Student t and normal distributions.</p>
+
+  <h2>Why large samples?</h2>
+
+  <p>Take the model</p>
+
+  $$y = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k + u ,$$
+
+  <p>where \(u\) is the error: everything else that affects \(y\). Under the Gauss-Markov assumptions and normality of \(u\), the t statistic follows exactly a Student t distribution, for any sample size. Without normality, that result is no longer exact. Large-sample, or <strong>asymptotic</strong>, theory studies what happens to the OLS estimator as the sample size \(n\) grows, and answers three questions:</p>
+  <ul>
+    <li>Does \(\hat\beta_j\) get closer to the true \(\beta_j\)?</li>
+    <li>Which distribution does the t statistic approach?</li>
+    <li>How does \(n\) change our chance of detecting a true effect?</li>
+  </ul>
+
+  <h2>Consistency</h2>
+
+  <p>An estimator is <strong>consistent</strong> if its distribution concentrates around the true value as \(n\) grows:</p>
+
+  $$\operatorname{plim}_{n\to\infty} \hat\beta_j = \beta_j ,$$
+
+  <p>that is, for any margin \(\varepsilon > 0\), the probability that \(\hat\beta_j\) is farther than \(\varepsilon\) from \(\beta_j\) goes to zero: \(\Pr(|\hat\beta_j - \beta_j| > \varepsilon) \to 0\).</p>
+
+  <p>In simple regression, the OLS slope can be written as the true slope plus a ratio of two sample averages:</p>
+
+  $$\hat\beta_1 = \beta_1 + \frac{n^{-1}\sum_i (x_i - \bar x)\,u_i}{n^{-1}\sum_i (x_i - \bar x)^2} .$$
+
+  <p>By the law of large numbers, the numerator converges to the covariance between \(x\) and \(u\), and the denominator to the variance of \(x\):</p>
+
+  $$\hat\beta_1 \ \xrightarrow{\ n\to\infty\ }\ \beta_1 + \frac{\mathrm{Cov}(x, u)}{\mathrm{Var}(x)} .$$
+
+  <p>If \(x\) and \(u\) are uncorrelated, \(\mathrm{Cov}(x, u) = 0\) and \(\hat\beta_1\) is consistent. In multiple regression, every \(\hat\beta_j\) is consistent under the first four Gauss-Markov assumptions: linearity in parameters, random sampling, no perfect collinearity and zero conditional mean of the error. Normality is not needed.</p>
+
+  <h2>Inconsistency</h2>
+
+  <p>If a regressor is correlated with the error, the bias does not disappear as \(n\) grows:</p>
+
+  $$\operatorname{plim} \hat\beta_1 - \beta_1 = \frac{\mathrm{Cov}(x_1, u)}{\mathrm{Var}(x_1)} \neq 0 .$$
+
+  <p>A common case is an omitted variable. If the true model is \(y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + u\) and we regress \(y\) on \(x_1\) alone, \(x_2\) ends up in the error, and the slope \(\tilde\beta_1\) converges to</p>
+
+  $$\operatorname{plim} \tilde\beta_1 = \beta_1 + \beta_2\,\delta_1 , \qquad \delta_1 = \frac{\mathrm{Cov}(x_1, x_2)}{\mathrm{Var}(x_1)} .$$
+
+  <p>An inconsistent estimator still converges, but to the wrong value. A larger sample makes it more precise around \(\beta_1 + \beta_2\delta_1\), not closer to \(\beta_1\): more data does not fix a wrong model.</p>
+
+  <h2>Asymptotic normality</h2>
+
+  <p>Under the Gauss-Markov assumptions (the four above plus homoskedasticity), and even without normality of \(u\), the t statistic is approximately standard normal in large samples:</p>
+
+  $$\frac{\hat\beta_j - \beta_j}{\mathrm{se}(\hat\beta_j)} \ \overset{a}{\sim}\ \mathcal N(0, 1) ,$$
+
+  <p>where \(\overset{a}{\sim}\) means "approximately distributed as, in large samples". The standard error shrinks at the rate \(\sqrt n\):</p>
+
+  $$\mathrm{se}(\hat\beta_j) \approx \frac{c_j}{\sqrt n} ,$$
+
+  <p>where \(c_j > 0\) depends on the error variance \(\sigma^2\) and on the variation of \(x_j\), but not on \(n\). As a consequence, t tests, confidence intervals and F tests remain approximately valid in large samples, with the usual critical values. In large samples the Student t and the standard normal critical values are almost the same: at 5% two-sided, 1.98 with 97 degrees of freedom and 1.96 for the normal.</p>
+
+  <h2>Type I and Type II errors</h2>
+
+  <p>A test can make two kinds of error:</p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th></th><th>\(H_0\) true</th><th>\(H_0\) false</th></tr></thead>
+      <tbody>
+        <tr><td>Reject \(H_0\)</td><td>Type I error (probability \(\alpha\))</td><td>Correct</td></tr>
+        <tr><td>Do not reject \(H_0\)</td><td>Correct</td><td>Type II error</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The level \(\alpha\), usually 5%, fixes the probability of a Type I error. The <strong>power</strong> of a test is the probability of rejecting \(H_0\) when it is false:</p>
+
+  $$\text{power} = \Pr(\text{reject } H_0 \mid H_0 \text{ false}) = 1 - \Pr(\text{Type II error}) .$$
+
+  <p>For \(H_0\colon \beta_j = 0\), the t statistic is close to \(\beta_j / \mathrm{se}(\hat\beta_j) \approx \sqrt n\,\beta_j / c_j\). Power therefore grows with the size of the effect \(|\beta_j|\) and with \(n\): with enough data, any effect different from zero is detected.</p>
+
+  <h2>The simulation</h2>
+
+  <p>To see these results at work, we build a population in which nothing is normal:</p>
+
+  $$y = 1 + 0.3\,x_1 + 0\cdot x_2 + u .$$
+
+  <p>The regressors \(x_1\) and \(x_2\) are exponential variables shifted to mean 0 (variance 1, skewed to the right); the error \(u\) is a chi-square with one degree of freedom, rescaled to mean 0 and variance 1, so it is strongly skewed. The regressors and the error are independent, so the Gauss-Markov assumptions hold but normality does not. \(x_1\) has an effect, \(x_2\) has none.</p>
+
+  <p>For each sample size \(n\) we draw 10,000 samples and estimate the model by OLS. The function <code>ols</code> returns the estimates and their classical standard errors.</p>
+
+<pre><code class="language-python">import numpy as np
+from scipy import stats
+
+BETA = np.array([1.0, 0.3, 0.0])    # intercept, x1 (has an effect), x2 (has none)
+K = 2                                # number of regressors
+R = 10_000                           # samples for each sample size
+ALPHA = 0.05
+
+def draw_sample(rng, n):
+    x1 = rng.exponential(1.0, n) - 1.0               # mean 0, variance 1, skewed
+    x2 = rng.exponential(1.0, n) - 1.0
+    u = (rng.chisquare(1, n) - 1.0) / np.sqrt(2.0)   # mean 0, variance 1, strongly skewed
+    X = np.column_stack([np.ones(n), x1, x2])
+    return X, X @ BETA + u
+
+def ols(X, y):
+    n, k1 = X.shape                                  # k1 = k + 1 parameters
+    XtX_inv = np.linalg.inv(X.T @ X)
+    b = XtX_inv @ X.T @ y                            # (X'X)^-1 X'y
+    u_hat = y - X @ b                                # residuals
+    s2 = u_hat @ u_hat / (n - k1)                    # estimate of sigma^2
+    return b, np.sqrt(s2 * np.diag(XtX_inv))         # estimates, standard errors
+
+def experiment(n, seed):
+    rng = np.random.default_rng(seed)
+    B, SE = np.empty((R, 3)), np.empty((R, 3))
+    for r in range(R):
+        B[r], SE[r] = ols(*draw_sample(rng, n))
+    return B, SE
+
+NS = [10, 25, 50, 100, 200, 400, 1600]
+res = {n: experiment(n, 100 + i) for i, n in enumerate(NS)}</code></pre>
+
+  <h2>Consistency in the simulation</h2>
+
+  <p>For four sample sizes we look at the 10,000 estimates of \(\beta_1\): their mean, their standard deviation, and the share of samples in which the estimate misses the true value by more than 0.1.</p>
+
+<pre><code class="language-python">print(f"{'n':&gt;6s}{'mean':&gt;8s}{'std. dev.':&gt;11s}{'share |b1 - 0.3| &gt; 0.1':&gt;24s}")
+for n in [25, 100, 400, 1600]:
+    b1 = res[n][0][:, 1]
+    far = np.mean(np.abs(b1 - BETA[1]) &gt; 0.1)
+    print(f"{n:6d}{b1.mean():8.3f}{b1.std():11.3f}{far:23.1%}")</code></pre>
+
+<pre class="output">     n    mean  std. dev.  share |b1 - 0.3| &gt; 0.1
+    25   0.299      0.247                  60.8%
+   100   0.301      0.105                  31.5%
+   400   0.300      0.051                   4.9%
+  1600   0.300      0.025                   0.0%</pre>
+
+  <p>The mean is close to 0.3 at every \(n\): OLS is unbiased here. What changes with \(n\) is the spread: each time \(n\) is multiplied by 4, the standard deviation is roughly halved, as the \(1/\sqrt n\) rate predicts. At \(n = 25\), 60.8% of the estimates are more than 0.1 away from the true value; at \(n = 1{,}600\), none is.</p>
+
+<pre><code class="language-python">import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(10, 4))
+bins = np.arange(-0.6, 1.2, 0.01)
+for n in [25, 100, 400]:
+    ax.hist(res[n][0][:, 1], bins=bins, density=True, histtype="step", lw=2, label=f"n = {n}")
+ax.axvline(BETA[1], color="black", ls="--", lw=1)
+ax.set(xlim=(-0.5, 1.1), xlabel="estimate of beta1 (true value 0.3)", ylabel="density")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/large-samples-consistency.svg" alt="Histograms of the 10,000 OLS estimates of beta1 for n equal to 25, 100 and 400. All are centred on the true value 0.3; the histogram for n = 25 is wide and skewed, the one for n = 400 is narrow and tall.">
+    <figcaption>The distribution of \(\hat\beta_1\) concentrates around the true value 0.3 as \(n\) grows.</figcaption>
+  </figure>
+
+  <h2>Asymptotic normality in the simulation</h2>
+
+  <p>In each sample we compute the t statistic for the true value of \(\beta_1\),</p>
+
+  $$t = \frac{\hat\beta_1 - \beta_1}{\mathrm{se}(\hat\beta_1)} ,$$
+
+  <p>and check its tails. The critical value \(c\) is the 5% two-sided critical value of the Student t with \(n - k - 1\) degrees of freedom, here \(n - 3\). If the t statistic followed the Student t, 2.5% of the samples would fall below \(-c\) and 2.5% above \(c\).</p>
+
+<pre><code class="language-python">print(f"{'n':&gt;6s}{'c':&gt;7s}{'below -c':&gt;10s}{'above c':&gt;9s}{'skewness':&gt;10s}")
+for n in [10, 25, 100, 400, 1600]:
+    B, SE = res[n]
+    t = (B[:, 1] - BETA[1]) / SE[:, 1]               # t statistic for the true value
+    c = stats.t.ppf(1 - ALPHA / 2, n - K - 1)        # 5% two-sided critical value
+    skew = np.mean(((t - t.mean()) / t.std())**3)
+    print(f"{n:6d}{c:7.2f}{np.mean(t &lt; -c):10.1%}{np.mean(t &gt; c):9.1%}{skew:10.2f}")</code></pre>
+
+<pre class="output">     n      c  below -c  above c  skewness
+    10   2.36      1.2%     4.2%      1.30
+    25   2.07      0.8%     4.3%      0.86
+   100   1.98      1.2%     3.5%      0.45
+   400   1.97      1.6%     3.0%      0.28
+  1600   1.96      2.1%     2.9%      0.14</pre>
+
+  <p>With \(n = 10\) the two tails are unbalanced: 1.2% of the samples fall below \(-c\) and 4.2% above \(c\), because the skewed error makes the t statistic skewed. As \(n\) grows, the skewness shrinks and the two tails move towards 2.5%: the normal approximation improves, even though the error is far from normal.</p>
+
+<pre><code class="language-python">grid = np.linspace(-5, 5, 500)
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
+for ax, n in zip(axes, [10, 1600]):
+    B, SE = res[n]
+    t = (B[:, 1] - BETA[1]) / SE[:, 1]
+    ax.hist(t, bins=np.arange(-5, 5.01, 0.2), density=True, color="0.7")
+    ax.plot(grid, stats.norm.pdf(grid), color="C3", ls="--", lw=2, label="standard normal")
+    ax.set(title=f"n = {n}", xlabel="t statistic for the true beta1")
+    ax.legend(frameon=False)
+axes[0].set_ylabel("density")
+plt.tight_layout()
+plt.show()</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/large-samples-t.svg" alt="Histograms of the t statistic for the true beta1 with the standard normal density. With n = 10 the histogram is skewed, with a long right tail; with n = 1600 it is close to the normal curve.">
+    <figcaption>The t statistic for the true \(\beta_1\), with the standard normal density (dashed). Left: \(n = 10\); right: \(n = 1{,}600\).</figcaption>
+  </figure>
+
+  <h2>Sample size and power</h2>
+
+  <p>Finally, we test \(H_0\colon \beta_j = 0\) for both regressors and record the share of samples in which each coefficient is significant at 5%. For \(x_1\), whose true effect is 0.3, this share is the power of the test; for \(x_2\), which has no effect, it is the probability of a Type I error.</p>
+
+<pre><code class="language-python">NP = [25, 50, 100, 200, 400]
+power, size = [], []
+print(f"{'n':&gt;6s}{'x1 significant':&gt;16s}{'x2 significant':&gt;16s}")
+for n in NP:
+    B, SE = res[n]
+    c = stats.t.ppf(1 - ALPHA / 2, n - K - 1)
+    sig = np.mean(np.abs(B / SE) &gt; c, axis=0)        # share of samples with |t| &gt; c
+    power.append(sig[1]); size.append(sig[2])
+    print(f"{n:6d}{sig[1]:16.1%}{sig[2]:16.1%}")</code></pre>
+
+<pre class="output">     n  x1 significant  x2 significant
+    25           33.3%            5.0%
+    50           53.2%            4.6%
+   100           81.4%            5.2%
+   200           98.1%            5.0%
+   400          100.0%            5.0%</pre>
+
+  <p>At \(n = 25\) the test detects the effect of \(x_1\) in only 33.3% of the samples: in two samples out of three a researcher would conclude that \(x_1\) is not significant, although its effect is real. At \(n = 400\) the effect is detected in every sample. For \(x_2\), the share stays at about 5% for every \(n\): the level of the test does not depend on the sample size, its power does.</p>
+
+<pre><code class="language-python">fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(NP, 100 * np.array(power), "o-", lw=2, label="x1: beta1 = 0.3 (power)")
+ax.plot(NP, 100 * np.array(size), "o-", lw=2, color="0.6", label="x2: beta2 = 0 (Type I error)")
+ax.axhline(100 * ALPHA, color="C3", ls="--", lw=1)
+ax.set_xscale("log"); ax.set_xticks(NP); ax.set_xticklabels(NP); ax.minorticks_off()
+ax.set(ylim=(0, 105), xlabel="sample size n", ylabel="% of samples significant at 5%")
+ax.legend(frameon=False, loc="center right")
+plt.tight_layout()
+plt.show()</code></pre>
+
+  <figure class="article-figure">
+    <img src="../assets/img/articles/large-samples-power.svg" alt="Share of samples in which each coefficient is significant at 5%, for n from 25 to 400. For x1 the share rises from about 33% to 100%; for x2 it stays at about 5%.">
+    <figcaption>Share of samples in which the coefficient is significant at 5%. Blue: \(x_1\) (power); grey: \(x_2\) (Type I error); dashed: 5%.</figcaption>
+  </figure>
+
+  <h2>Misreading large samples</h2>
+  <ul>
+    <li><strong>Consistent is not unbiased.</strong> Consistency is a property in the limit; in a small sample an estimator can still be biased or imprecise.</li>
+    <li><strong>A large sample does not fix a wrong model.</strong> With an omitted variable, more data gives a more precise estimate of the wrong quantity.</li>
+    <li><strong>Not significant in a small sample is not "no effect".</strong> The test may simply lack power.</li>
+    <li><strong>Significant in a huge sample is not "large effect".</strong> With enough data, an economically negligible effect is statistically significant.</li>
+  </ul>
+
+  <h2>Takeaways</h2>
+  <ul>
+    <li>OLS is consistent when the regressors are uncorrelated with the error: \(\hat\beta_j\) concentrates around \(\beta_j\) as \(n\) grows.</li>
+    <li>If a regressor is correlated with the error, OLS converges to the wrong value, however large the sample.</li>
+    <li>In large samples the t statistic is approximately normal, even when the error is not: t tests and confidence intervals remain valid.</li>
+    <li>The standard error shrinks like \(1/\sqrt n\), so the power of a test grows with \(n\), while the probability of a Type I error stays at \(\alpha\).</li>
+  </ul>
+
+  <aside class="support-box">
+    <p>If this article was useful, you can support the series with a coffee, or follow it on LinkedIn.</p>
+    <div class="btn-row">
+    <a class="btn btn-primary" href="https://ko-fi.com/corradobotta" target="_blank" rel="noopener" data-goatcounter-click="ko-fi-large-samples" data-goatcounter-title="Ko-fi: large samples">&#9749; Buy me a coffee</a>
+    <a class="btn" href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener" data-goatcounter-click="linkedin-large-samples" data-goatcounter-title="LinkedIn: large samples">Follow on LinkedIn</a>
+    </div>
+  </aside>
+
+  <p class="article-ref">Reference: J. M. Wooldridge, <em>Introductory Econometrics: A Modern Approach</em>, 7th ed., Cengage, 2020. All data are simulated.</p>
+
+  <nav class="article-nav">
+    <a href="../articles.html">&larr; All articles</a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>Corrado Botta</div>
+    <div class="footer-links">
+      <a href="mailto:corrado.botta@unibocconi.it">corrado.botta@unibocconi.it</a>
+      <a href="https://www.linkedin.com/in/corrado-botta-4a685079/" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://www.youtube.com/@corradobotta" target="_blank" rel="noopener">YouTube</a>
+      <a href="https://faculty.unibocconi.it/corradobotta/" target="_blank" rel="noopener">Bocconi faculty page</a>
+      <a href="https://scholar.google.com/citations?user=FTNSh2AAAAAJ&amp;hl=en" target="_blank" rel="noopener">Google Scholar</a>
+      <a href="https://papers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=6429627" target="_blank" rel="noopener">SSRN</a>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/main.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "\\(", right: "\\)", display: false }
+    ],
+    ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+  });
+  hljs.highlightAll();
+});
+</script>
+</body>
+</html>
